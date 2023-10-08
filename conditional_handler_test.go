@@ -24,6 +24,20 @@ func TestNewConditionalHandler(t *testing.T) {
 		return h
 	}
 
+	commonDoc := trimmed(`---
+					|store:
+					|  book:
+					|  - author: Ernest Hemingway
+					|    title: The Old Man and the Sea
+					|  - author: Fyodor Mikhailovich Dostoevsky
+					|    title: Crime and Punishment
+					|  - author: Jane Austen
+					|    title: Sense and Sensibility
+					|  - author: Kurt Vonnegut Jr.
+					|    title: Slaughterhouse-Five
+					|  - author: J. R. R. Tolkien
+					|    title: The Lord of the Rings`)
+
 	tests := map[string]visitorScenario[ConditionalHandler]{
 		"handles documents": {
 			input: "document: 1",
@@ -61,19 +75,7 @@ func TestNewConditionalHandler(t *testing.T) {
 			},
 		},
 		"handles mappings": {
-			input: trimmed(`---
-					|store:
-					|  book:
-					|  - author: Ernest Hemingway
-					|    title: The Old Man and the Sea
-					|  - author: Fyodor Mikhailovich Dostoevsky
-					|    title: Crime and Punishment
-					|  - author: Jane Austen
-					|    title: Sense and Sensibility
-					|  - author: Kurt Vonnegut Jr.
-					|    title: Slaughterhouse-Five
-					|  - author: J. R. R. Tolkien
-					|    title: The Lord of the Rings`),
+			input: commonDoc,
 			handler: mustCreate(t, OnVisitMappingNode("$.store.book[?(@.title=~/^S.*$/)]", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
 				assert.Nil(t, key, "Expected key for a mapping node within a sequence to be nil.")
 				value.HeadComment = "testing: handles mappings"
@@ -103,19 +105,7 @@ func TestNewConditionalHandler(t *testing.T) {
 			},
 		},
 		"handles scalars": {
-			input: trimmed(`---
-					|store:
-					|  book:
-					|  - author: Ernest Hemingway
-					|    title: The Old Man and the Sea
-					|  - author: Fyodor Mikhailovich Dostoevsky
-					|    title: Crime and Punishment
-					|  - author: Jane Austen
-					|    title: Sense and Sensibility
-					|  - author: Kurt Vonnegut Jr.
-					|    title: Slaughterhouse-Five
-					|  - author: J. R. R. Tolkien
-					|    title: The Lord of the Rings`),
+			input: commonDoc,
 			handler: mustCreate(t, OnVisitScalarNode("$.store.book[?(@.title=~/^S.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
 				assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
 				key.HeadComment = "testing: handles scalars"
@@ -144,23 +134,47 @@ func TestNewConditionalHandler(t *testing.T) {
 				return nil
 			},
 		},
-		"handles aliases":   {},
-		"handles multiples": {},
+		"handles aliases": {},
+		"handles multiples": {
+			input: commonDoc,
+			handler: mustCreate(t,
+				OnVisitScalarNode("$.store.book[?(@.title=~/^S.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+					assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+					key.HeadComment = "testing: handles scalars"
+					return nil
+				}),
+				OnVisitScalarNode("$.store.book[?(@.title=~/^C.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+					assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+					key.HeadComment = "testing: handles scalars"
+					return nil
+				}),
+			),
+			validatorWithNode: func(t *testing.T, h ConditionalHandler, node *yaml.Node) error {
+				assert.Equal(t, yaml.DocumentNode, node.Kind)
+				yp, _ := yamlpath.NewPath("$.store.book")
+				nodes, _ := yp.Find(node)
+				found := 0
+				for _, books := range nodes {
+					for i := 0; i < len(books.Content); i += 1 {
+						book := books.Content[i]
+						for i := 0; i < len(book.Content); i += 2 {
+							key := book.Content[i]
+							val := book.Content[i+1]
+							// our handler is expected invoke multiple handlers, one matching on S* and one matching on C*
+							if key.Value == "title" && (strings.HasPrefix(val.Value, "S") || strings.HasPrefix(val.Value, "C")) {
+								assert.Equal(t, "testing: handles scalars", key.HeadComment)
+								found += 1
+							}
+						}
+					}
+				}
+				assert.Equal(t, 3, found, "Expected to match S* and C* titles")
+				return nil
+			},
+		},
 		"handles errors": {
 			wantErr: true,
-			input: trimmed(`---
-					|store:
-					|  book:
-					|  - author: Ernest Hemingway
-					|    title: The Old Man and the Sea
-					|  - author: Fyodor Mikhailovich Dostoevsky
-					|    title: Crime and Punishment
-					|  - author: Jane Austen
-					|    title: Sense and Sensibility
-					|  - author: Kurt Vonnegut Jr.
-					|    title: Slaughterhouse-Five
-					|  - author: J. R. R. Tolkien
-					|    title: The Lord of the Rings`),
+			input:   commonDoc,
 			handler: mustCreate(t, OnVisitScalarNode("$.store.book[?(@.title=~/^S.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
 				// selector will select two nodes, we will apply a marker head comment to the first one, then error
 				if value.Value == "Sense and Sensibility" {
