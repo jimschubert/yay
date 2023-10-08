@@ -104,9 +104,7 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 		if value.Kind == yaml.SequenceNode {
 			for i := 0; i < len(value.Content); i += 1 {
 				var key *yaml.Node
-				var val *yaml.Node
-
-				val = value.Content[i]
+				val := value.Content[i]
 				key = emptyNode
 
 				if err = v.visit(ctx, key, val); err != nil {
