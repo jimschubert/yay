@@ -1,10 +1,8 @@
 package yay
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -171,34 +169,9 @@ func TestVisitorTraversals(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := NewVisitor(tt.handler)
-			assert.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.TODO())
 			tt.handler.canceler = cancel
-
-			d := yaml.NewDecoder(bytes.NewReader([]byte(tt.input)))
-			var last *yaml.Node
-			for {
-				node := new(yaml.Node)
-				err := d.Decode(node)
-				if errors.Is(err, io.EOF) {
-					break
-				}
-				last = node
-
-				err = got.Visit(ctx, node)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("NewVisitor() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
-			}
-
-			if tt.validator != nil {
-				assert.NoError(t, tt.validator(t, *tt.handler))
-			}
-			if tt.validatorWithNode != nil {
-				assert.NoError(t, tt.validatorWithNode(t, *tt.handler, last))
-			}
+			validateScenario(t, ctx, tt)
 		})
 	}
 }

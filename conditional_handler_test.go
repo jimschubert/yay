@@ -1,13 +1,10 @@
 package yay
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
@@ -40,10 +37,13 @@ func TestNewConditionalHandler(t *testing.T) {
 
 	tests := map[string]visitorScenario[ConditionalHandler]{
 		"handles documents": {
-			input: "document: 1",
+			input:              "document: 1",
+			requireVerifyCount: 1,
 			handler: mustCreate(t, OnVisitDocumentNode(func(ctx context.Context, value *yaml.Node) error {
-				// pre-check: t here is the test parent, not this individual test
-				assert.Equal(t, yaml.DocumentNode, value.Kind)
+				verify(ctx, func(t *testing.T) {
+					assert.Equal(t, yaml.DocumentNode, value.Kind)
+				})
+
 				value.HeadComment = "test: handles documents"
 				return nil
 			})),
@@ -75,9 +75,12 @@ func TestNewConditionalHandler(t *testing.T) {
 			},
 		},
 		"handles mappings": {
-			input: commonDoc,
+			input:              commonDoc,
+			requireVerifyCount: 2,
 			handler: mustCreate(t, OnVisitMappingNode("$.store.book[?(@.title=~/^S.*$/)]", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
-				assert.Nil(t, key, "Expected key for a mapping node within a sequence to be nil.")
+				verify(ctx, func(t *testing.T) {
+					assert.Nil(t, key, "Expected key for a mapping node within a sequence to be nil.")
+				})
 				value.HeadComment = "testing: handles mappings"
 				return nil
 			})),
@@ -105,9 +108,12 @@ func TestNewConditionalHandler(t *testing.T) {
 			},
 		},
 		"handles scalars": {
-			input: commonDoc,
+			input:              commonDoc,
+			requireVerifyCount: 2,
 			handler: mustCreate(t, OnVisitScalarNode("$.store.book[?(@.title=~/^S.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
-				assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+				verify(ctx, func(t *testing.T) {
+					assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+				})
 				key.HeadComment = "testing: handles scalars"
 				return nil
 			})),
@@ -134,17 +140,49 @@ func TestNewConditionalHandler(t *testing.T) {
 				return nil
 			},
 		},
-		"handles aliases": {},
+		"handles aliases": {
+			input: trimmed(`---
+					|store:
+					|  book: &books
+					|    - author: Ernest Hemingway
+					|      title: The Old Man and the Sea
+					|    - author: Fyodor Mikhailovich Dostoevsky
+					|      title: Crime and Punishment
+					|    - author: Jane Austen
+					|      title: Sense and Sensibility
+					|    - author: Kurt Vonnegut Jr.
+					|      title: Slaughterhouse-Five
+					|    - author: J. R. R. Tolkien
+					|      title: The Lord of the Rings
+					|  audiobooks:
+					|    - *books
+					|    - author: Stephen "Steve-O" Glover
+					|      title: 'Professional Idiot: A Memoir'`),
+			handler: mustCreate(t, OnVisitAliasNode("$.store.audiobooks.*", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+				verify(ctx, func(t *testing.T) {
+					assert.Equal(t, yaml.AliasNode, value.Kind)
+					assert.Equal(t, "books", value.Value)
+					assert.Equal(t, 5, len(value.Alias.Content))
+				})
+				return nil
+			})),
+			requireVerifyCount: 1,
+		},
 		"handles multiples": {
-			input: commonDoc,
+			input:              commonDoc,
+			requireVerifyCount: 3, /* 2 of S*, 1 of C* */
 			handler: mustCreate(t,
 				OnVisitScalarNode("$.store.book[?(@.title=~/^S.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
-					assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+					verify(ctx, func(t *testing.T) {
+						assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+					})
 					key.HeadComment = "testing: handles scalars"
 					return nil
 				}),
 				OnVisitScalarNode("$.store.book[?(@.title=~/^C.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
-					assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+					verify(ctx, func(t *testing.T) {
+						assert.Equal(t, "title", key.Value, "Shouldn't be processing any other scalars besides title")
+					})
 					key.HeadComment = "testing: handles scalars"
 					return nil
 				}),
@@ -209,34 +247,7 @@ func TestNewConditionalHandler(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := NewVisitor(tt.handler)
-			assert.NoError(t, err)
-			ctx, cancel := context.WithDeadline(context.TODO(), time.Now().Add(5*time.Minute))
-			defer cancel()
-
-			d := yaml.NewDecoder(bytes.NewReader([]byte(tt.input)))
-			var last *yaml.Node
-			for {
-				node := new(yaml.Node)
-				err := d.Decode(node)
-				if errors.Is(err, io.EOF) {
-					break
-				}
-				last = node
-
-				err = got.Visit(ctx, node)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("NewConditionalHandler() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
-			}
-
-			if tt.validator != nil {
-				assert.NoError(t, tt.validator(t, *tt.handler))
-			}
-			if tt.validatorWithNode != nil {
-				assert.NoError(t, tt.validatorWithNode(t, *tt.handler, last))
-			}
+			validateScenario(t, context.TODO(), tt)
 		})
 	}
 }
