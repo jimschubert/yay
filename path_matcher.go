@@ -2,7 +2,6 @@ package yay
 
 import (
 	"sync"
-	"unsafe"
 
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
@@ -14,7 +13,7 @@ type PathMatcher struct {
 	rawPath string
 	path    *yamlpath.Path
 	root    *yaml.Node
-	matches map[uintptr]struct{}
+	matches map[*yaml.Node]struct{}
 	mu      sync.Mutex
 }
 
@@ -24,7 +23,7 @@ func (p *PathMatcher) Match(node *yaml.Node) (bool, error) {
 		return false, err
 	}
 
-	_, ok := p.matches[uintptr(unsafe.Pointer(node))]
+	_, ok := p.matches[node]
 	return ok, nil
 }
 
@@ -41,13 +40,13 @@ func (p *PathMatcher) ensureMatchLookup() error {
 	if p.matches == nil {
 		p.mu.Lock()
 		defer p.mu.Unlock()
-		p.matches = make(map[uintptr]struct{})
+		p.matches = make(map[*yaml.Node]struct{})
 		nodes, err := p.path.Find(p.root)
 		if err != nil {
 			return err
 		}
 		for _, n := range nodes {
-			p.matches[uintptr(unsafe.Pointer(n))] = struct{}{}
+			p.matches[n] = struct{}{}
 		}
 	}
 	return nil
