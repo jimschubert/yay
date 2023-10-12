@@ -48,3 +48,8 @@ func WithPathMatcher(ctx context.Context, matcher *PathMatcher) context.Context 
 func withRootNode(ctx context.Context, node *yaml.Node) context.Context {
 	return context.WithValue(ctx, rootNodeKey{}, node)
 }
+
+func rootNode(ctx context.Context) (*yaml.Node, bool) {
+	n, ok := ctx.Value(rootNodeKey{}).(*yaml.Node)
+	return n, ok
+}

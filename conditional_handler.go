@@ -12,14 +12,23 @@ type FnVisitKeyValueNode func(ctx context.Context, key *yaml.Node, value *yaml.N
 type FnConditional func(path string, fn FnVisitKeyValueNode) FnVisitKeyValueNode
 
 func precondition(path string, fn FnVisitKeyValueNode) FnVisitKeyValueNode {
+	var pm *PathMatcher
 	return func(parent context.Context, key *yaml.Node, value *yaml.Node) error {
-		// need to optimize this
-		pm, err := PathMatcherFor(parent, path)
-		if err != nil {
-			return err
+		if pm == nil {
+			var err error
+			pm, err = PathMatcherFor(parent, path)
+			if err != nil {
+				return err
+			}
+		} else if root, ok := rootNode(parent); ok && pm.root != root {
+			pm.root = root
+			pm.matches = nil
+			if err := pm.ensureMatchLookup(); err != nil {
+				return err
+			}
 		}
 
-		if pm.MustMatch(key) || pm.MustMatch(value) {
+		if pm.MustMatch(value) {
 			// We will only invoke this function if it's applicable to the current node.
 			// Passing the path matcher along on context allows the user to obtain the path matcher and match
 			// against any nested children if needed
