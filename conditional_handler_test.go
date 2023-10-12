@@ -168,7 +168,78 @@ func TestNewConditionalHandler(t *testing.T) {
 			})),
 			requireVerifyCount: 1,
 		},
-		"handles multiples": {
+		"handles multiple docs of same structure": func() visitorScenario[ConditionalHandler] {
+			processed := make([]string, 0)
+			return visitorScenario[ConditionalHandler]{
+				input: trimmed(`---
+					|store:
+					|  book:
+					|    - author: Ernest Hemingway
+					|      title: The Old Man and the Sea
+					|    - author: Fyodor Mikhailovich Dostoevsky
+					|      title: Crime and Punishment
+					|    - author: Jane Austen
+					|      title: Sense and Sensibility
+					|---
+					|store:
+					|  book:
+					|    - author: Kurt Vonnegut Jr.
+					|      title: Slaughterhouse-Five
+					|    - author: J. R. R. Tolkien
+					|      title: The Lord of the Rings`),
+				handler: mustCreate(t, OnVisitScalarNode("$.store.book[*].author", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+					processed = append(processed, value.Value)
+					return nil
+				})),
+				validator: func(t *testing.T, h ConditionalHandler) error {
+					assert.EqualValues(t, []string{
+						"Ernest Hemingway",
+						"Fyodor Mikhailovich Dostoevsky",
+						"Jane Austen",
+						"Kurt Vonnegut Jr.",
+						"J. R. R. Tolkien",
+					}, processed)
+					return nil
+				},
+			}
+		}(),
+
+		"handles multiple docs of different structures": func() visitorScenario[ConditionalHandler] {
+			processed := make([]string, 0)
+			return visitorScenario[ConditionalHandler]{
+				input: trimmed(`---
+					|store:
+					|  book:
+					|    - author: Ernest Hemingway
+					|      title: The Old Man and the Sea
+					|    - author: Fyodor Mikhailovich Dostoevsky
+					|      title: Crime and Punishment
+					|    - author: Jane Austen
+					|      title: Sense and Sensibility
+					|---
+					|library:
+					|  audiobook:
+					|    - author: Kurt Vonnegut Jr.
+					|      title: Slaughterhouse-Five
+					|    - author: J. R. R. Tolkien
+					|      title: The Lord of the Rings`),
+				handler: mustCreate(t, OnVisitScalarNode("$..author", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+					processed = append(processed, value.Value)
+					return nil
+				})),
+				validator: func(t *testing.T, h ConditionalHandler) error {
+					assert.EqualValues(t, []string{
+						"Ernest Hemingway",
+						"Fyodor Mikhailovich Dostoevsky",
+						"Jane Austen",
+						"Kurt Vonnegut Jr.",
+						"J. R. R. Tolkien",
+					}, processed)
+					return nil
+				},
+			}
+		}(),
+		"handles multiple handlers of same node type": {
 			input:              commonDoc,
 			requireVerifyCount: 3, /* 2 of S*, 1 of C* */
 			handler: mustCreate(t,
