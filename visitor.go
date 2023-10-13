@@ -177,11 +177,17 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 //   - VisitsMappingNode
 //   - VisitsScalarNode
 //   - VisitsAliasNode
-func NewVisitor(handler any) (Visitor, error) {
-	switch i := handler.(type) {
-	case VisitsYaml, VisitsDocumentNode, VisitsSequenceNode, VisitsMappingNode, VisitsScalarNode, VisitsAliasNode:
-	default:
-		return nil, fmt.Errorf("type %T doesn't implement any visitor handlers", i)
+func NewVisitor(handlers ...any) (Visitor, error) {
+	for _, handler := range handlers {
+		switch i := handler.(type) {
+		case VisitsYaml, VisitsDocumentNode, VisitsSequenceNode, VisitsMappingNode, VisitsScalarNode, VisitsAliasNode:
+		default:
+			return nil, fmt.Errorf("type %T doesn't implement any visitor handlers", i)
+		}
 	}
-	return &visitor{handler: handler}, nil
+	if len(handlers) == 1 {
+		return &visitor{handler: handlers[0]}, nil
+	}
+
+	return &visitor{handler: &compositeHandler{handlers: handlers}}, nil
 }

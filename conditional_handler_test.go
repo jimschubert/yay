@@ -282,8 +282,7 @@ func TestNewConditionalHandler(t *testing.T) {
 			},
 		},
 		"handles errors": {
-			wantErr: true,
-			input:   commonDoc,
+			input: commonDoc,
 			handler: mustCreate(t, OnVisitScalarNode("$.store.book[?(@.title=~/^S.*$/)].title", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
 				// selector will select two nodes, we will apply a marker head comment to the first one, then error
 				if value.Value == "Sense and Sensibility" {
@@ -292,6 +291,9 @@ func TestNewConditionalHandler(t *testing.T) {
 				}
 				return nil
 			})),
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorContains(t, err, "it makes no sense")
+			},
 			validatorWithNode: func(t *testing.T, h ConditionalHandler, node *yaml.Node) error {
 				assert.Equal(t, yaml.DocumentNode, node.Kind)
 				yp, _ := yamlpath.NewPath("$.store.book")

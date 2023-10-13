@@ -26,7 +26,7 @@ type visitorScenario[T any] struct {
 	input              string
 	validator          func(t *testing.T, h T) error
 	validatorWithNode  func(t *testing.T, h T, node *yaml.Node) error
-	wantErr            bool
+	wantErr            assert.ErrorAssertionFunc
 	requireVerifyCount int
 }
 
@@ -62,11 +62,19 @@ func validateScenario[T any](t *testing.T, parent context.Context, scenario visi
 	ctx, cancel := context.WithDeadline(parent, time.Now().Add(5*time.Minute))
 	defer cancel()
 
+	var errFn assert.ErrorAssertionFunc
+	if scenario.wantErr == nil {
+		errFn = assert.NoError
+	} else {
+		errFn = scenario.wantErr
+	}
+
 	captures := make([]captorFunction, 0)
 	ctx = context.WithValue(ctx, captor{}, &captures)
 
 	d := yaml.NewDecoder(bytes.NewReader([]byte(scenario.input)))
 	var last *yaml.Node
+
 	for {
 		node := new(yaml.Node)
 		err := d.Decode(node)
@@ -76,10 +84,8 @@ func validateScenario[T any](t *testing.T, parent context.Context, scenario visi
 		last = node
 
 		err = got.Visit(ctx, node)
-		if (err != nil) != scenario.wantErr {
-			t.Errorf("%s | error = %v, wantErr %v", t.Name(), err, scenario.wantErr)
-			return
-		}
+
+		errFn(t, err, "%s | error = %v", t.Name(), err)
 	}
 
 	if scenario.validator != nil {
@@ -95,7 +101,7 @@ func validateScenario[T any](t *testing.T, parent context.Context, scenario visi
 		fn(t)
 	}
 
-	if !scenario.wantErr && (scenario.validator == nil && scenario.validatorWithNode == nil && scenario.requireVerifyCount == 0) {
+	if scenario.wantErr == nil && (scenario.validator == nil && scenario.validatorWithNode == nil && scenario.requireVerifyCount == 0) {
 		t.Fatal("non-error scenarios must define a validator or invoke verify and define requireVerifyCount for post-test verifications.")
 	}
 }
