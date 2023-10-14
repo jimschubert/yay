@@ -8,7 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var input = `---
+func ExampleNewConditionalHandler_scalars_selectors() {
+	input := `---
 store:
   book:
   - author: Ernest Hemingway
@@ -22,7 +23,6 @@ store:
   - author: J. R. R. Tolkien
     title: The Lord of the Rings`
 
-func ExampleNewConditionalHandler_scalars_selectors() {
 	document := &yaml.Node{}
 	_ = yaml.Unmarshal([]byte(input), document)
 
@@ -41,6 +41,21 @@ func ExampleNewConditionalHandler_scalars_selectors() {
 }
 
 func ExampleNewConditionalHandler_mapping_selectors() {
+
+	input := `---
+store:
+  book:
+  - author: Ernest Hemingway
+    title: The Old Man and the Sea
+  - author: Fyodor Mikhailovich Dostoevsky
+    title: Crime and Punishment
+  - author: Jane Austen
+    title: Sense and Sensibility
+  - author: Kurt Vonnegut Jr.
+    title: Slaughterhouse-Five
+  - author: J. R. R. Tolkien
+    title: The Lord of the Rings`
+
 	document := &yaml.Node{}
 	_ = yaml.Unmarshal([]byte(input), document)
 
