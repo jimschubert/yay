@@ -81,11 +81,14 @@ func validateScenario[T any](t *testing.T, parent context.Context, scenario visi
 		if errors.Is(err, io.EOF) {
 			break
 		}
+		assert.NoError(t, err)
 		last = node
 
 		err = got.Visit(ctx, node)
 
-		errFn(t, err, "%s | error = %v", t.Name(), err)
+		if !errFn(t, err, "%s | error = %v", t.Name(), err) {
+			break
+		}
 	}
 
 	if scenario.validator != nil {

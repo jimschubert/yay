@@ -73,13 +73,13 @@ func (t *traverseAll) VisitAliasNode(ctx context.Context, key *yaml.Node, value 
 }
 
 var (
-	empty                    = traverseAll{}
-	_     VisitsSequenceNode = &empty
-	_     VisitsScalarNode   = &empty
-	_     VisitsMappingNode  = &empty
-	_     VisitsAliasNode    = &empty
-	_     VisitsDocumentNode = &empty
-	_     VisitsYaml         = &empty
+	empty                    = (*traverseAll)(nil)
+	_     VisitsSequenceNode = empty
+	_     VisitsScalarNode   = empty
+	_     VisitsMappingNode  = empty
+	_     VisitsAliasNode    = empty
+	_     VisitsDocumentNode = empty
+	_     VisitsYaml         = empty
 )
 
 func TestVisitorTraversals(t *testing.T) {
