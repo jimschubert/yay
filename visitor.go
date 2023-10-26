@@ -101,7 +101,18 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 
 	// if there was an error, we won't recurse nodes any further
 	if maybeErr == nil && value.Content != nil && len(value.Content) > 0 {
-		if value.Kind == yaml.SequenceNode {
+		maybeErr = v.iterate(ctx, value)
+	}
+
+	return maybeErr
+}
+
+func (v *visitor) iterate(ctx context.Context, value *yaml.Node) error {
+	var err error
+	var maybeErr error
+	if ctx.Err() == nil {
+		switch value.Kind {
+		case yaml.SequenceNode:
 			for i := 0; i < len(value.Content); i += 1 {
 				var key *yaml.Node
 				val := value.Content[i]
@@ -114,7 +125,7 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 					break
 				}
 			}
-		} else {
+		case yaml.MappingNode:
 			for i := 0; i < len(value.Content); i += 2 {
 				key := value.Content[i]
 				val := value.Content[i+1]
@@ -127,7 +138,6 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 			}
 		}
 	}
-
 	return maybeErr
 }
 
@@ -151,21 +161,8 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 		}
 
 	}
-
-	if ctx.Err() == nil {
-		value := node.Content[0]
-		for i := 0; i < len(value.Content); i += 2 {
-			nestedKey := value.Content[i]
-			nestedValue := value.Content[i+1]
-			if err = v.visit(ctx, nestedKey, nestedValue); err != nil {
-				maybeErr = errors.Join(maybeErr, err)
-				if ctx.Err() != nil {
-					break
-				}
-			}
-		}
-	}
-	return maybeErr
+	value := node.Content[0]
+	return v.iterate(ctx, value)
 }
 
 // NewVisitor constructs a new Visitor which handles yaml.Node processing defined by handler.

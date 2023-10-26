@@ -24,7 +24,14 @@ type traverseAll struct {
 }
 
 func (t *traverseAll) VisitDocumentNode(ctx context.Context, key *yaml.Node) error {
-	t.documents = append(t.documents, key.Content[0].Content[0])
+	kind := key.Content[0].Kind
+	if kind == yaml.MappingNode {
+		// we'll just store the first node as a document indicator
+		t.documents = append(t.documents, key.Content[0].Content[0])
+	} else if kind == yaml.SequenceNode {
+		// store the sequence itself
+		t.documents = append(t.documents, key.Content[0])
+	}
 	return nil
 }
 
@@ -167,6 +174,47 @@ func TestVisitorTraversals(t *testing.T) {
 				assert.Equal(t, "second", second.left.Value)
 				assert.Equal(t, "2nd", second.right.Value)
 
+				return nil
+			},
+		},
+
+		"handles array-based documents": {
+			handler: &traverseAll{
+				expectsSequences: true,
+				expectsScalars:   true,
+				expectsMappings:  true,
+			},
+			input: trimmed(`---
+				|- first: "1st"
+				|- second: "2nd"`),
+			validator: func(t *testing.T, h traverseAll) error {
+				assert.Equal(t, 1, len(h.documents))
+				assert.Equal(t, 0, len(h.sequences))
+				assert.Equal(t, 2, len(h.mappings))
+				assert.Equal(t, 2, len(h.scalars))
+
+				assert.Equal(t, yaml.SequenceNode, h.documents[0].Kind)
+				assert.Equal(t, 2, len(h.documents[0].Content))
+
+				item1 := h.mappings[0]
+				assert.Nil(t, item1.left, "No key should be passed on sequence map")
+				assert.Equal(t, 2, len(item1.right.Content))
+				assert.Equal(t, "first", item1.right.Content[0].Value)
+				assert.Equal(t, "1st", item1.right.Content[1].Value)
+
+				item2 := h.mappings[1]
+				assert.Nil(t, item2.left, "No key should be passed on sequence map")
+				assert.Equal(t, 2, len(item2.right.Content))
+				assert.Equal(t, "second", item2.right.Content[0].Value)
+				assert.Equal(t, "2nd", item2.right.Content[1].Value)
+
+				first := h.scalars[0]
+				assert.Equal(t, "first", first.left.Value)
+				assert.Equal(t, "1st", first.right.Value)
+
+				second := h.scalars[1]
+				assert.Equal(t, "second", second.left.Value)
+				assert.Equal(t, "2nd", second.right.Value)
 				return nil
 			},
 		},
