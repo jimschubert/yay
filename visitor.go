@@ -162,7 +162,10 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 
 	}
 	value := node.Content[0]
-	return v.iterate(ctx, value)
+	err = v.iterate(ctx, value)
+	maybeErr = errors.Join(maybeErr, err)
+
+	return maybeErr
 }
 
 // NewVisitor constructs a new Visitor which handles yaml.Node processing defined by handler.
