@@ -161,6 +161,12 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 		}
 
 	}
+
+	if node.Content == nil || len(node.Content) == 0 {
+		// ex: if user invokes as v.Visit(ctx, &yaml.Node{ Kind: yaml.DocumentNode })
+		return maybeErr
+	}
+
 	value := node.Content[0]
 	err = v.iterate(ctx, value)
 	maybeErr = errors.Join(maybeErr, err)

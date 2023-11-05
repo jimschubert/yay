@@ -91,6 +91,16 @@ var (
 
 func TestVisitorTraversals(t *testing.T) {
 	tests := map[string]visitorScenario[traverseAll]{
+
+		"handles empty documents": {
+			handler: &traverseAll{},
+			input:   "",
+			validator: func(t *testing.T, h traverseAll) error {
+				assert.Equal(t, 0, len(h.documents))
+				return nil
+			},
+		},
+
 		"handles single documents": {
 			handler: &traverseAll{
 				expectsMappings: true,
@@ -149,6 +159,26 @@ func TestVisitorTraversals(t *testing.T) {
 				b := h.scalars[3]
 				assert.Equal(t, "B", b.left.Value)
 				assert.Equal(t, "b", b.right.Value)
+				return nil
+			},
+		},
+
+		"handles multiple documents with empties": {
+			handler: &traverseAll{
+				expectsMappings: true,
+				expectsScalars:  true,
+			},
+			input: trimmed(`---
+				|# second document
+				|message: hello`),
+			validator: func(t *testing.T, h traverseAll) error {
+				assert.Equal(t, 1, len(h.documents))
+				assert.Equal(t, 1, len(h.scalars))
+
+				first := h.scalars[0]
+				assert.Equal(t, "message", first.left.Value)
+				assert.Equal(t, "hello", first.right.Value)
+
 				return nil
 			},
 		},
