@@ -3,6 +3,7 @@ package yay
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -328,6 +329,130 @@ func TestVisitorTraversals_composite_handlers(t *testing.T) {
 				h.canceler = cancel
 			}
 			validateScenario(t, ctx, tt)
+		})
+	}
+}
+
+func TestNewVisitorWithOptions(t *testing.T) {
+	testHandler := func(handler conditionalHandlerOpt) []any {
+		handle, err := NewConditionalHandler(
+			handler,
+			OnVisitDocumentNode(func(ctx context.Context, value *yaml.Node) error {
+				t.Error("Should not treat as Document Node")
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return []any{
+			handle,
+		}
+	}
+
+	type args struct {
+		options  FnOptions
+		handlers []any
+	}
+	tests := []struct {
+		name       string
+		args       args
+		targetNode *yaml.Node
+		wantErr    assert.ErrorAssertionFunc
+		validate   func(t *testing.T, node *yaml.Node)
+	}{
+		{
+			name: "allows skipping document check via option, node document kind in parent",
+			targetNode: &yaml.Node{
+				Content: []*yaml.Node{
+					{
+						Kind:  yaml.ScalarNode,
+						Value: "key",
+					},
+					{
+						Kind:  yaml.ScalarNode,
+						Value: "value",
+					},
+				},
+			},
+			wantErr: assert.NoError,
+			args: args{
+				options: NewOptions().WithSkipDocumentCheck(true),
+				handlers: testHandler(
+					OnVisitScalarNode("$.key", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+						key.Value = "updated"
+						return nil
+					}),
+				),
+			},
+			validate: func(t *testing.T, node *yaml.Node) {
+				assert.Equal(t, "updated", node.Content[0].Value)
+			},
+		},
+		{
+			name: "allows skipping document check via option, parent node is mapping",
+			targetNode: &yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					{
+						Kind:  yaml.ScalarNode,
+						Value: "key",
+					},
+					{
+						Kind:  yaml.ScalarNode,
+						Value: "value",
+					},
+				},
+			},
+			wantErr: assert.NoError,
+			args: args{
+				options: NewOptions().WithSkipDocumentCheck(true),
+				handlers: testHandler(
+					OnVisitScalarNode("$.key", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+						key.Value = "updated"
+						return nil
+					}),
+				),
+			},
+			validate: func(t *testing.T, node *yaml.Node) {
+				assert.Equal(t, "updated", node.Content[0].Value)
+			},
+		},
+		{
+			name: "allows skipping document check via option, sequences",
+			targetNode: func() *yaml.Node {
+				node := &yaml.Node{}
+				assert.NoError(t, yaml.Unmarshal([]byte(`[1,2,3]`), node))
+
+				return node.Content[0]
+			}(),
+			wantErr: assert.NoError,
+			args: args{
+				options: NewOptions().WithSkipDocumentCheck(true),
+				handlers: testHandler(
+					OnVisitScalarNode("$[0]", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+						value.Tag = "!!str"
+						value.Value = "updated"
+						return nil
+					}),
+				),
+			},
+			validate: func(t *testing.T, node *yaml.Node) {
+				assert.Equal(t, "updated", node.Content[0].Value)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, err := NewVisitorWithOptions(tt.args.options, tt.args.handlers...)
+			assert.NoError(t, err)
+			if !tt.wantErr(t, v.Visit(context.Background(), tt.targetNode), fmt.Sprintf("NewVisitorWithOptions(%v, handlers)", tt.args.options)) {
+				return
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, tt.targetNode)
+			}
 		})
 	}
 }
