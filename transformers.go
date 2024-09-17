@@ -11,6 +11,7 @@ var (
 )
 
 type multipleToSingleMergeHandler struct {
+	retainMergeKeyOrder bool
 }
 
 func (m multipleToSingleMergeHandler) VisitMappingNode(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
@@ -53,18 +54,44 @@ func (m multipleToSingleMergeHandler) VisitMappingNode(ctx context.Context, key 
 		contents = append(contents, k, v)
 	}
 
-	if mergeValue != nil && len(mergeValue.Content) == 1 && initialMergeKind == yaml.AliasNode {
-		// drop to single-value syntax back to the original syntax
-		for i, content := range contents {
-			if content.Tag == "!!merge" {
-				contents[i+1] = mergeValue.Content[0]
-				break
+	if mergeValue != nil {
+		if len(mergeValue.Content) == 1 && initialMergeKind == yaml.AliasNode {
+			// drop to single-value syntax back to the original syntax
+			for i, content := range contents {
+				if content.Tag == "!!merge" {
+					contents[i+1] = mergeValue.Content[0]
+					break
+				}
+			}
+		} else if initialMergeKind == yaml.AliasNode && !m.retainMergeKeyOrder {
+			// reverse contents of mergeValue.Content, allowing overrides of original contents
+			for i, j := 0, len(mergeValue.Content)-1; i < j; i, j = i+1, j-1 {
+				mergeValue.Content[i], mergeValue.Content[j] = mergeValue.Content[j], mergeValue.Content[i]
 			}
 		}
 	}
 
 	value.Content = contents
 	return nil
+}
+
+// MultipleMergeKeyOpt is an option for NewMultipleToSingleMergeHandler.
+type MultipleMergeKeyOpt func(handler *multipleToSingleMergeHandler)
+
+// WithRetainMergeKeyOrder is an option for NewMultipleToSingleMergeHandler which changes the behavior of merging keys
+// to retain the original order.
+//
+// By default, NewMultipleToSingleMergeHandler will reverse the order of the merge keys, allowing for keys to be
+// overridden according to the specification for merge keys as defined in the [YAML specification]. Since multiple merge
+// keys are not defined by the specification, some parsers and libraries may not follow the same behaviors.
+//
+// This option will change the behavior to retain the original order of the multiple merge keys.
+//
+// [YAML specification]: https://yaml.org/type/merge.html
+func WithRetainMergeKeyOrder() MultipleMergeKeyOpt {
+	return func(handler *multipleToSingleMergeHandler) {
+		handler.retainMergeKeyOrder = true
+	}
 }
 
 // NewMultipleToSingleMergeHandler aims to address a common situation in which the [YAML specification] does not allow multiple merge keys
@@ -76,6 +103,10 @@ func (m multipleToSingleMergeHandler) VisitMappingNode(ctx context.Context, key 
 // [issue 624]: https://github.com/go-yaml/yaml/issues/624
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
-func NewMultipleToSingleMergeHandler() *multipleToSingleMergeHandler {
-	return &multipleToSingleMergeHandler{}
+func NewMultipleToSingleMergeHandler(opts ...MultipleMergeKeyOpt) *multipleToSingleMergeHandler {
+	handler := &multipleToSingleMergeHandler{}
+	for _, opt := range opts {
+		opt(handler)
+	}
+	return handler
 }
