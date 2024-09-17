@@ -1,0 +1,85 @@
+run:
+  concurrency: 4
+  timeout: 10m
+  tests: true
+
+output:
+  sort-results: true
+
+linters:
+  disable-all: true
+  enable:
+    - gofmt
+    - govet
+    - gocyclo
+    - staticcheck
+
+linters-settings:
+  # https://golangci-lint.run/usage/linters/#gocyclo
+  gocyclo:
+    # Minimal code complexity to report.
+    min-complexity: 25
+
+  # https://golangci-lint.run/usage/linters/#gofmt
+  gofmt:
+    simplify: false
+    rewrite-rules:
+      - pattern: 'a[b:len(a)]'
+        replacement: 'a[b:]'
+      - pattern: 'make(map[a]b, 0)'
+        replacement: 'make(map[b]c)'
+      - pattern: 'make([]a)'
+        replacement: 'make([]a, 0)'
+
+  # https://golangci-lint.run/usage/linters/#stylecheck
+  stylecheck:
+    checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+    dot-import-whitelist:
+      - mimic
+    # https://staticcheck.io/docs/configuration/options/#initialisms
+    initialisms:
+      - API
+      - ASCII
+      - DB
+      - EOF
+      - GUID
+      - HTML
+      - HTTP
+      - HTTPS
+      - ID
+      - JSON
+      - UI
+      - URI
+      - URL
+      - UUID
+      - VHS
+      - XML
+
+  # https://golangci-lint.run/usage/linters/#govet
+  govet:
+    disable-all: true
+    enable:
+      - assign
+      - bools
+      - buildtag
+      - printf
+      - structtag
+      - tests
+      - unmarshal
+      - unreachable
+      - unusedresult
+      - unusedwrite
+
+# https://golangci-lint.run/usage/configuration/#issues-configuration
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gofmt
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+  max-issues-per-linter: 25
+  max-same-issues: 5
