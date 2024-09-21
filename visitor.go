@@ -62,7 +62,6 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 	}
 
 	var maybeErr error
-	var err error
 
 	var keyNode *yaml.Node
 	// emptyNode is a sentinel value for sequences
@@ -73,28 +72,28 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 	switch value.Kind {
 	case yaml.SequenceNode:
 		if handle, ok := v.handler.(VisitsSequenceNode); ok {
-			if err = handle.VisitSequenceNode(ctx, keyNode, value); err != nil {
+			if err := handle.VisitSequenceNode(ctx, keyNode, value); err != nil {
 				maybeErr = errors.Join(maybeErr, err)
 			}
 		}
 
 	case yaml.MappingNode:
 		if handle, ok := v.handler.(VisitsMappingNode); ok {
-			if err = handle.VisitMappingNode(ctx, keyNode, value); err != nil {
+			if err := handle.VisitMappingNode(ctx, keyNode, value); err != nil {
 				maybeErr = errors.Join(maybeErr, err)
 			}
 		}
 
 	case yaml.ScalarNode:
 		if handle, ok := v.handler.(VisitsScalarNode); ok {
-			if err = handle.VisitScalarNode(ctx, keyNode, value); err != nil {
+			if err := handle.VisitScalarNode(ctx, keyNode, value); err != nil {
 				maybeErr = errors.Join(maybeErr, err)
 			}
 		}
 
 	case yaml.AliasNode:
 		if handle, ok := v.handler.(VisitsAliasNode); ok {
-			if err = handle.VisitAliasNode(ctx, keyNode, value); err != nil {
+			if err := handle.VisitAliasNode(ctx, keyNode, value); err != nil {
 				maybeErr = errors.Join(maybeErr, err)
 			}
 		}
@@ -111,17 +110,13 @@ func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) e
 }
 
 func (v *visitor) iterate(ctx context.Context, value *yaml.Node) error {
-	var err error
 	var maybeErr error
 	if ctx.Err() == nil {
 		switch value.Kind {
 		case yaml.SequenceNode:
-			for i := 0; i < len(value.Content); i += 1 {
-				var key *yaml.Node
+			for i := 0; i < len(value.Content); i++ {
 				val := value.Content[i]
-				key = emptyNode
-
-				if err = v.visit(ctx, key, val); err != nil {
+				if err := v.visit(ctx, emptyNode, val); err != nil {
 					maybeErr = errors.Join(maybeErr, err)
 				}
 				if ctx.Err() != nil {
@@ -132,7 +127,7 @@ func (v *visitor) iterate(ctx context.Context, value *yaml.Node) error {
 			for i := 0; i < len(value.Content); i += 2 {
 				key := value.Content[i]
 				val := value.Content[i+1]
-				if err = v.visit(ctx, key, val); err != nil {
+				if err := v.visit(ctx, key, val); err != nil {
 					maybeErr = errors.Join(maybeErr, err)
 				}
 				if ctx.Err() != nil {
@@ -150,7 +145,6 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 	}
 
 	var maybeErr error
-	var err error
 
 	if !v.options.skipDocumentCheck && node.Kind != yaml.DocumentNode {
 		return fmt.Errorf("visitor can only be invoked on a document or multi-document YAML")
@@ -163,10 +157,9 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 		// TODO: We should be able to move the document visit into iterate and simplify this function
 		ctx := withRootNode(ctx, node)
 		if handle, ok := v.handler.(VisitsDocumentNode); ok {
-			if err = handle.VisitDocumentNode(ctx, node); err != nil {
+			if err := handle.VisitDocumentNode(ctx, node); err != nil {
 				maybeErr = errors.Join(maybeErr, err)
 			}
-
 		}
 
 		if node.Content == nil || len(node.Content) == 0 {
@@ -175,7 +168,7 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 		}
 
 		value := node.Content[0]
-		err = v.iterate(ctx, value)
+		err := v.iterate(ctx, value)
 		maybeErr = errors.Join(maybeErr, err)
 	} else if node.Content != nil && len(node.Content) == 2 {
 		if node.Content[1] != nil {
@@ -190,16 +183,17 @@ func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
 			}
 
 			nestedCtx := withRootNode(ctx, wrapper)
-			err = v.visit(nestedCtx, node.Content[0], node.Content[1])
+			err := v.visit(nestedCtx, node.Content[0], node.Content[1])
+			maybeErr = errors.Join(maybeErr, err)
 		} else {
 			nestedCtx := withRootNode(ctx, &yaml.Node{Kind: yaml.DocumentNode, Content: node.Content})
-			err = v.iterate(nestedCtx, node.Content[0])
+			err := v.iterate(nestedCtx, node.Content[0])
+			maybeErr = errors.Join(maybeErr, err)
 		}
-		maybeErr = errors.Join(maybeErr, err)
 	} else {
 		virtualRoot := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{node}}
 		nestedCtx := withRootNode(ctx, virtualRoot)
-		err = v.iterate(nestedCtx, node)
+		err := v.iterate(nestedCtx, node)
 		maybeErr = errors.Join(maybeErr, err)
 	}
 

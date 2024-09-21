@@ -10,19 +10,20 @@ var (
 	_ VisitsMappingNode = (*multipleToSingleMergeHandler)(nil)
 )
 
+// multipleToSingleMergeHandler handles the transformation of multiple merge keys into a single merge key.
+// See NewMultipleToSingleMergeHandler for more information.
 type multipleToSingleMergeHandler struct {
 	retainMergeKeyOrder bool
 }
 
+// VisitMappingNode processes a YAML mapping node to consolidate multiple merge keys into a single merge key.
 func (m multipleToSingleMergeHandler) VisitMappingNode(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
 	var mergeValue *yaml.Node
 	contents := make([]*yaml.Node, 0)
 	initialMergeKind := yaml.AliasNode
 
 	for i := 0; i < len(value.Content); i += 2 {
-		k := value.Content[i]
-		v := value.Content[i+1]
-		// anchor definition is v.Anchor
+		k, v := value.Content[i], value.Content[i+1]
 
 		// if key.Tag == !!merge && value.Kind == yaml.AliasNode, value.value will be the target anchor name
 		// if value.Value is empty, and value.Kind == yaml.SequenceNode, this is the correct/expected syntax, but we will
@@ -42,6 +43,7 @@ func (m multipleToSingleMergeHandler) VisitMappingNode(ctx context.Context, key 
 			}
 
 			// we're in the context of an alias. Now, check if it's a scalar or sequence
+			//goland:noinspection GoSwitchMissingCasesForIotaConsts
 			switch v.Kind {
 			case yaml.AliasNode:
 				mergeValue.Content = append(mergeValue.Content, v)

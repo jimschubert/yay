@@ -17,16 +17,14 @@ func (fn FnOptions) WithSkipDocumentCheck(val bool) FnOptions {
 	}
 }
 
-var defaults FnOptions = func(o *opts) {
-	if !o.initialized {
-		o.skipDocumentCheck = false
-		o.initialized = true
-	}
-}
-
 // NewOptions creates a new options functional builder with discoverable functions that don't pollute the yay package
 //
 //goland:noinspection GoExportedFuncWithUnexportedType
 func NewOptions() FnOptions {
-	return defaults
+	return func(o *opts) {
+		if !o.initialized {
+			o.skipDocumentCheck = false
+			o.initialized = true
+		}
+	}
 }
