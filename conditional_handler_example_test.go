@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jimschubert/yay"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func ExampleNewConditionalHandler_scalars_selectors() {

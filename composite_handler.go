@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 type compositeHandler struct {
