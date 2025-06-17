@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // PathMatcher collects information internally to wrap yamlpath.Path for optimized key/value matching during iteration.
