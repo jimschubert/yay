@@ -56,6 +56,67 @@ type visitor struct {
 	options opts
 }
 
+func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
+	if node == nil || parent.Err() != nil {
+		return nil
+	}
+
+	var maybeErr error
+
+	if !v.options.skipDocumentCheck && node.Kind != yaml.DocumentNode {
+		return fmt.Errorf("visitor can only be invoked on a document or multi-document YAML")
+	}
+
+	ctx, canceler := context.WithCancel(parent)
+	defer canceler()
+
+	if node.Kind == yaml.DocumentNode {
+		// TODO: We should be able to move the document visit into iterate and simplify this function
+		ctx := withRootNode(ctx, node)
+		if handle, ok := v.handler.(VisitsDocumentNode); ok {
+			if err := handle.VisitDocumentNode(ctx, node); err != nil {
+				maybeErr = errors.Join(maybeErr, err)
+			}
+		}
+
+		if node.Content == nil || len(node.Content) == 0 {
+			// ex: if user invokes as v.Visit(ctx, &yaml.Node{ Kind: yaml.DocumentNode })
+			return maybeErr
+		}
+
+		value := node.Content[0]
+		err := v.iterate(ctx, value)
+		maybeErr = errors.Join(maybeErr, err)
+	} else if node.Content != nil && len(node.Content) == 2 {
+		if node.Content[1] != nil {
+			// HACK: yaml-jsonpath requires a "root node" having children to match against. 2 children must be within a mapping node
+			wrapper := &yaml.Node{
+				Kind: yaml.DocumentNode,
+			}
+			if node.Content[0].Kind != yaml.MappingNode {
+				wrapper.Content = []*yaml.Node{{Kind: yaml.MappingNode, Content: node.Content}}
+			} else {
+				wrapper.Content = append(wrapper.Content, node.Content[0], node.Content[1])
+			}
+
+			nestedCtx := withRootNode(ctx, wrapper)
+			err := v.visit(nestedCtx, node.Content[0], node.Content[1])
+			maybeErr = errors.Join(maybeErr, err)
+		} else {
+			nestedCtx := withRootNode(ctx, &yaml.Node{Kind: yaml.DocumentNode, Content: node.Content})
+			err := v.iterate(nestedCtx, node.Content[0])
+			maybeErr = errors.Join(maybeErr, err)
+		}
+	} else {
+		virtualRoot := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{node}}
+		nestedCtx := withRootNode(ctx, virtualRoot)
+		err := v.iterate(nestedCtx, node)
+		maybeErr = errors.Join(maybeErr, err)
+	}
+
+	return maybeErr
+}
+
 func (v *visitor) visit(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
 	if ctx.Err() != nil || key == nil {
 		return nil
@@ -136,67 +197,6 @@ func (v *visitor) iterate(ctx context.Context, value *yaml.Node) error {
 			}
 		}
 	}
-	return maybeErr
-}
-
-func (v *visitor) Visit(parent context.Context, node *yaml.Node) error {
-	if node == nil || parent.Err() != nil {
-		return nil
-	}
-
-	var maybeErr error
-
-	if !v.options.skipDocumentCheck && node.Kind != yaml.DocumentNode {
-		return fmt.Errorf("visitor can only be invoked on a document or multi-document YAML")
-	}
-
-	ctx, canceler := context.WithCancel(parent)
-	defer canceler()
-
-	if node.Kind == yaml.DocumentNode {
-		// TODO: We should be able to move the document visit into iterate and simplify this function
-		ctx := withRootNode(ctx, node)
-		if handle, ok := v.handler.(VisitsDocumentNode); ok {
-			if err := handle.VisitDocumentNode(ctx, node); err != nil {
-				maybeErr = errors.Join(maybeErr, err)
-			}
-		}
-
-		if node.Content == nil || len(node.Content) == 0 {
-			// ex: if user invokes as v.Visit(ctx, &yaml.Node{ Kind: yaml.DocumentNode })
-			return maybeErr
-		}
-
-		value := node.Content[0]
-		err := v.iterate(ctx, value)
-		maybeErr = errors.Join(maybeErr, err)
-	} else if node.Content != nil && len(node.Content) == 2 {
-		if node.Content[1] != nil {
-			// HACK: yaml-jsonpath requires a "root node" having children to match against. 2 children must be within a mapping node
-			wrapper := &yaml.Node{
-				Kind: yaml.DocumentNode,
-			}
-			if node.Content[0].Kind != yaml.MappingNode {
-				wrapper.Content = []*yaml.Node{{Kind: yaml.MappingNode, Content: node.Content}}
-			} else {
-				wrapper.Content = append(wrapper.Content, node.Content[0], node.Content[1])
-			}
-
-			nestedCtx := withRootNode(ctx, wrapper)
-			err := v.visit(nestedCtx, node.Content[0], node.Content[1])
-			maybeErr = errors.Join(maybeErr, err)
-		} else {
-			nestedCtx := withRootNode(ctx, &yaml.Node{Kind: yaml.DocumentNode, Content: node.Content})
-			err := v.iterate(nestedCtx, node.Content[0])
-			maybeErr = errors.Join(maybeErr, err)
-		}
-	} else {
-		virtualRoot := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{node}}
-		nestedCtx := withRootNode(ctx, virtualRoot)
-		err := v.iterate(nestedCtx, node)
-		maybeErr = errors.Join(maybeErr, err)
-	}
-
 	return maybeErr
 }
 
