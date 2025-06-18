@@ -1,10 +1,10 @@
 package yay
 
 import (
-	"sync"
-
+	"fmt"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"go.yaml.in/yaml/v3"
+	"sync"
 )
 
 // PathMatcher collects information internally to wrap yamlpath.Path for optimized key/value matching during iteration.
@@ -19,8 +19,12 @@ type PathMatcher struct {
 
 // Match determines if a node matches the yamlpath.Path condition provided by the user
 func (p *PathMatcher) Match(node *yaml.Node) (bool, error) {
-	if err := p.ensureMatchLookup(); err != nil || len(p.matches) == 0 {
-		return false, err
+	err := p.ensureMatchLookup()
+	if err != nil {
+		return false, fmt.Errorf("path matcher lookup failed: %w", err)
+	}
+	if len(p.matches) == 0 {
+		return false, nil
 	}
 
 	_, ok := p.matches[node]
@@ -40,13 +44,15 @@ func (p *PathMatcher) ensureMatchLookup() error {
 	if p.matches == nil {
 		p.mu.Lock()
 		defer p.mu.Unlock()
-		p.matches = make(map[*yaml.Node]struct{})
-		nodes, err := p.path.Find(p.root)
-		if err != nil {
-			return err
-		}
-		for _, n := range nodes {
-			p.matches[n] = struct{}{}
+		if p.matches == nil { // double-check
+			p.matches = make(map[*yaml.Node]struct{})
+			nodes, err := p.path.Find(p.root)
+			if err != nil {
+				return err
+			}
+			for _, n := range nodes {
+				p.matches[n] = struct{}{}
+			}
 		}
 	}
 	return nil

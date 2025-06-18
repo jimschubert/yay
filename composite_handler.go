@@ -7,6 +7,13 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// Ensure compositeHandler implements all Visits* interfaces
+var _ VisitsDocumentNode = (*compositeHandler)(nil)
+var _ VisitsSequenceNode = (*compositeHandler)(nil)
+var _ VisitsMappingNode = (*compositeHandler)(nil)
+var _ VisitsScalarNode = (*compositeHandler)(nil)
+var _ VisitsAliasNode = (*compositeHandler)(nil)
+
 type compositeHandler struct {
 	handlers []any
 }

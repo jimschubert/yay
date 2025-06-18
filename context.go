@@ -36,7 +36,7 @@ func PathMatcherFor(ctx context.Context, path string) (*PathMatcher, error) {
 
 // WithPathMatcher derives from the parent context a new context containing the provided PathMatcher
 func WithPathMatcher(ctx context.Context, matcher *PathMatcher) context.Context {
-	if matcher.root == nil {
+	if matcher != nil && matcher.root == nil {
 		if rootNode, ok := ctx.Value(rootNodeKey{}).(*yaml.Node); ok {
 			matcher.root = rootNode
 			matcher.matches = nil
