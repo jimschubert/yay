@@ -1,9 +1,7 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/jimschubert/go-yit v0.0.1 h1:yzaGwiczwXQojigmTJuOx3Rr/ijqA+VwXuPdqYYjAtQ=
-github.com/jimschubert/go-yit v0.0.1/go.mod h1:cNa/cU+2dnDPGmUHWTPvSaq5JqNhwlJt6DAzi7wVCQ4=
-github.com/jimschubert/yaml-jsonpath v0.3.3 h1:0Dd+E1DFipjsgGt+mbSh62zg0hI0zq2QUrF8LDT1YYM=
-github.com/jimschubert/yaml-jsonpath v0.3.3/go.mod h1:Re5iWgGbyTVvkYvraoSFYX5Jr8D+MFEFQnQhPLXNRu8=
+github.com/jimschubert/yaml-jsonpath v0.4.0 h1:+kX9BT3vCAtiDYcHoLEn9bbuuXBa8y9NJYbfe6GXFIY=
+github.com/jimschubert/yaml-jsonpath v0.4.0/go.mod h1:z2fVFyLH9qGZIdLcu2BzR28anrypR9zWi3931uKCTfc=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/sergi/go-diff v1.4.0 h1:n/SP9D5ad1fORl+llWyN+D6qoUETXNZARKjyY2/KVCw=

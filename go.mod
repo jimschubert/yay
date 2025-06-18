@@ -12,11 +12,8 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dprotaso/go-yit v0.0.0-20250617014309-d9cfd875a529 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/vmware-labs/yaml-jsonpath => github.com/jimschubert/yaml-jsonpath v0.3.3
-
-replace github.com/dprotaso/go-yit => github.com/jimschubert/go-yit v0.0.1
+replace github.com/vmware-labs/yaml-jsonpath => github.com/jimschubert/yaml-jsonpath v0.4.0
