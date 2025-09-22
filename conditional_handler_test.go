@@ -168,6 +168,58 @@ func TestNewConditionalHandler(t *testing.T) {
 			})),
 			requireVerifyCount: 1,
 		},
+		"handles multiple nested aliases": func() visitorScenario[ConditionalHandler] {
+			processed := make([]string, 0)
+			return visitorScenario[ConditionalHandler]{
+				input: trimmed(`---
+					|defaults:
+					|  genres:
+					|    fiction: &fiction
+					|      genre: Fiction
+					|    science-fiction: &science-fiction
+					|      genre: Science Fiction
+					|    fantasy: &fantasy
+					|      genre: Fantasy
+					|  hemingway: &hemingway
+					|    author: Ernest Hemingway
+					|store:
+					|  book: &books
+					|    - <<: [*hemingway, *fiction]
+					|      title: The Old Man and the Sea
+					|    - <<: [*hemingway, *fiction]
+					|      title: For Whom the Bell Tolls
+					|    - <<: [*hemingway, *fiction]
+					|      title: To Have and Have Not
+					|    - author: Fyodor Mikhailovich Dostoevsky
+					|      title: Crime and Punishment
+					|      <<: *fiction
+					|    - author: Jane Austen
+					|      title: Sense and Sensibility
+					|      <<: *fiction
+					|    - author: Kurt Vonnegut Jr.
+					|      title: Slaughterhouse-Five
+					|      <<: *science-fiction
+					|    - author: J. R. R. Tolkien
+					|      title: The Lord of the Rings
+					|      <<: *fantasy
+					|  audiobooks:
+					|    - *books
+					|    - author: Stephen "Steve-O" Glover
+					|      title: 'Professional Idiot: A Memoir'`),
+				handler: mustCreate(t, OnVisitScalarNode("$.store.book[*].genre", func(ctx context.Context, key *yaml.Node, value *yaml.Node) error {
+					processed = append(processed, value.Value)
+					return nil
+				})),
+				validator: func(t *testing.T, h ConditionalHandler) error {
+					assert.EqualValues(t, []string{
+						"Fiction",
+						"Science Fiction",
+						"Fantasy",
+					}, processed)
+					return nil
+				},
+			}
+		}(),
 		"handles multiple docs of same structure": func() visitorScenario[ConditionalHandler] {
 			processed := make([]string, 0)
 			return visitorScenario[ConditionalHandler]{
