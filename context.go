@@ -3,6 +3,7 @@ package yay
 import (
 	"context"
 
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -25,9 +26,11 @@ func PathMatcherFor(ctx context.Context, path string) (*PathMatcher, error) {
 	}
 
 	if matcher.root == nil {
-		if rootNode, ok := ctx.Value(rootNodeKey{}).(*yaml.Node); ok {
-			matcher.root = rootNode
+		if node, ok := rootNode(ctx); ok {
+			matcher.root = node
 			matcher.matches = nil
+			// forces re-evaluation of path with new root for alias/anchor lookups
+			matcher.path, _ = yamlpath.NewPathWithRoot(matcher.rawPath, node)
 		}
 	}
 
@@ -37,15 +40,23 @@ func PathMatcherFor(ctx context.Context, path string) (*PathMatcher, error) {
 // WithPathMatcher derives from the parent context a new context containing the provided PathMatcher
 func WithPathMatcher(ctx context.Context, matcher *PathMatcher) context.Context {
 	if matcher != nil && matcher.root == nil {
-		if rootNode, ok := ctx.Value(rootNodeKey{}).(*yaml.Node); ok {
-			matcher.root = rootNode
+		if node, ok := rootNode(ctx); ok {
+			matcher.root = node
 			matcher.matches = nil
+			// forces re-evaluation of path with new root for alias/anchor lookups
+			matcher.path, _ = yamlpath.NewPathWithRoot(matcher.rawPath, node)
 		}
 	}
 	return context.WithValue(ctx, pathMatchKey{}, matcher)
 }
 
 func withRootNode(ctx context.Context, node *yaml.Node) context.Context {
+	if result, ok := ctx.Value(pathMatchKey{}).(*PathMatcher); ok {
+		result.root = node
+		// forces re-evaluation of path with new root for alias/anchor lookups
+		result.path, _ = yamlpath.NewPathWithRoot(result.rawPath, node)
+	}
+
 	return context.WithValue(ctx, rootNodeKey{}, node)
 }
 

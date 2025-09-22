@@ -1,13 +1,13 @@
 module github.com/jimschubert/yay
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.3
 
 require (
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	go.yaml.in/yaml/v3 v3.0.3
+	go.yaml.in/yaml/v3 v3.0.4
 )
 
 require (
@@ -16,4 +16,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/vmware-labs/yaml-jsonpath => github.com/jimschubert/yaml-jsonpath v0.4.0
+replace github.com/vmware-labs/yaml-jsonpath => github.com/jimschubert/yaml-jsonpath v0.5.1

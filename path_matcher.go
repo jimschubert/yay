@@ -2,9 +2,10 @@ package yay
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"go.yaml.in/yaml/v3"
-	"sync"
 )
 
 // PathMatcher collects information internally to wrap yamlpath.Path for optimized key/value matching during iteration.
@@ -28,6 +29,11 @@ func (p *PathMatcher) Match(node *yaml.Node) (bool, error) {
 	}
 
 	_, ok := p.matches[node]
+	if !ok && node.Alias != nil {
+		_, ok = p.matches[node.Alias]
+		return ok, nil
+	}
+
 	return ok, nil
 }
 
