@@ -1,35 +1,16 @@
 name: Build Go
-# See https://docs.github.com/en/actions/sharing-automations/creating-workflow-templates-for-your-organization
-# See https://github.blog/developer-skills/github/using-reusable-workflows-github-actions/
 on:
   push:
-    branches: [ "main", 'feature/*' ]
-  pull_request:
+    branches: [ 'main', 'master', 'feature/*' ]
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    env:
-      GO111MODULE: "on"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Install Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
-
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test
-        run: go test -v -race ./... -cover
+    uses: jimschubert/.workflows/.github/workflows/go-build-goreleaser.yml@main
+    with:
+      golangci-lint: "v2.7.2"
+    secrets: inherit
